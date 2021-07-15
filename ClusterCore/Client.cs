@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,6 +10,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -65,72 +67,30 @@ namespace ClusterCore
             await socket.ConnectAsync(Uri, CancellationToken.None);
             Console.WriteLine("Connected to {0}", url);
             var buffer = new byte[4 * 1024];
-            while (socket.State == WebSocketState.Open && ThreadRunning)
+            while (!socket.CloseStatus.HasValue && ThreadRunning)
             {
                 try
                 {
                     Console.WriteLine("Waiting for something to do...");
                     await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                     string source = Encoding.UTF8.GetString(buffer).Trim('\0');
-                    Console.WriteLine("Recieved: {0}", source);
 
-                    var syntaxTree = CSharpSyntaxTree.ParseText(source);
+                    var program = new ClusterProgram(source);
 
-                    var dotNetCoreDir = Path.GetDirectoryName(typeof(object).GetTypeInfo().Assembly.Location);
+                    var entryPoint = program.GetClientEntryPoint();
 
-                    CSharpCompilation compilation = CSharpCompilation.Create(assemblyName: "ClusterProgramCompiled",
-                        new[] { syntaxTree },
-                        new[] {
-                            MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(typeof(Dns).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Runtime.dll"))
-                        },
-                        new CSharpCompilationOptions(OutputKind.ConsoleApplication));
-
-                    FileStream exefStream = File.OpenWrite("ClusterProgramCompiled.dll");
-                    FileStream pdbfStream = File.OpenWrite("ClusterProgramCompiled.pdb");
-                    FileStream runtimeConfig = File.OpenWrite("ClusterProgramCompiled.runtimeconfig.json");
-                    GenerateRuntimeConfig(runtimeConfig);
-                    runtimeConfig.Close();
-
-                    var emitResult = compilation.Emit(exefStream, pdbfStream);
-                    if (!emitResult.Success)
+                    if (entryPoint == null)
                     {
-                        var failures = emitResult.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
-
-                        foreach(Diagnostic diagnostic in failures)
-                        {
-                            Console.Error.WriteLine("{0}: {1}", diagnostic.Id, diagnostic.GetMessage());
-                        }
-                    }
-                    else
-                    {
-                        exefStream.Close();
-                        pdbfStream.Close();
-                        var proc = new Process
-                        {
-                            StartInfo = new ProcessStartInfo
-                            {
-                                FileName = "dotnet",
-                                Arguments = "ClusterProgramCompiled.dll",
-                                UseShellExecute = false,
-                                RedirectStandardOutput = true,
-                                CreateNoWindow = true
-                            }
-                        };
-
-                        proc.Start();
-
-                        while (!proc.StandardOutput.EndOfStream)
-                        {
-                            string line = proc.StandardOutput.ReadLine();
-                            await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(line)), WebSocketMessageType.Binary, proc.StandardOutput.EndOfStream, CancellationToken.None);
-                        }
-
-                        Process.Start("dotnet", "ClusterProgramCompiled.dll");
+                        await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("No entrypoint for client found")), WebSocketMessageType.Text, true, CancellationToken.None);
+                        return;
                     }
 
+                    var result = entryPoint.GetParameters().Length > 0
+                        ? entryPoint.Invoke(null, new object[] { null })
+                        : entryPoint.Invoke(null, null);
+
+                    string strRes = JsonConvert.SerializeObject(result, Formatting.None);
+                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(strRes)), WebSocketMessageType.Text, true, CancellationToken.None);
                 }
                 catch(Exception ex)
                 {

@@ -14,6 +14,52 @@ namespace ClusterCore
     {
         private static Thread SocketManagerThread = new Thread(ManageSockets);
         private static bool ManagerThreadRunning = false;
+
+        private static string source = @"using System;
+using System.Text;
+using System.Net;
+using System.Net.WebSockets;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
+              
+namespace ClusterProgram
+{
+    public class ClientResult {
+        public int Number { get; set; }
+        public bool IsOdd { get;set; }
+    }
+
+    class Program {
+        public static async Task<string> Evaluate(WebSocket socket, object parameters, string source)
+        {
+            byte[] buffer = new byte[4 * 1024];
+            await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(source)), WebSocketMessageType.Text, true, CancellationToken.None);
+            await socket.ReceiveAsync(buffer, CancellationToken.None);
+
+            return Encoding.UTF8.GetString(buffer);
+        }
+
+        static async Task Main(Dictionary<string, WebSocket> Clients, string source){
+            // Process the results from clients
+            var results = await Task.WhenAll(Clients.Select(o => Evaluate(o.Value, null, source)));
+            
+            Console.WriteLine(""Got: {0} results."", results.Length);
+        }
+
+        static List<ClientResult> Client(){
+            var ret = new List<ClientResult>();
+            for(int i = 0; i < 1000; i++){
+                ret.Add(new ClientResult { Number = i, IsOdd = i % 2 != 0 });
+            }
+
+            return ret;
+        }
+    }
+}
+                            ";
+
         public static void StartManagerThread()
         {
             ManagerThreadRunning = true;
@@ -39,22 +85,9 @@ namespace ClusterCore
                         WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
                         if (AddClient(context.Connection.RemoteIpAddress.ToString(), webSocket))
                         {
-                            string source = @"using System;
-using System.Net;
-              
-namespace ClusterProgram
-{
-    class Program {
-        static void Main(string[] args){
-            for(int i = 0; i < 100; i++){
-                Console.WriteLine(i.ToString() + "" is "" + (i % 2 == 0 ? ""Even"" : ""Odd""));
-            }
-        }
-    }
-}
-                            ";
+                            
 
-                            await SendProgram(context, webSocket, source);
+                            await SocketLoop(context, webSocket, source);
                         }
                     }
                     else
@@ -117,17 +150,34 @@ namespace ClusterProgram
             }
         }
 
-        private static async Task SendProgram(HttpContext context, WebSocket webSocket, string source)
+        private static async Task SocketLoop(HttpContext context, WebSocket webSocket, string source)
         {
             var buffer = new byte[1024 * 4];
             byte[] sourceBytes = Encoding.UTF8.GetBytes(source);
             WebSocketReceiveResult result = null;
 
-            while (result == null || !result.CloseStatus.HasValue)
+            var program = new ClusterProgram(source);
+
+            var entryPoint = program.GetServerEntryPoint();
+
+            if (entryPoint == null)
             {
-                await webSocket.SendAsync(new ArraySegment<byte>(sourceBytes, 0, sourceBytes.Length), WebSocketMessageType.Text, true, CancellationToken.None);
-                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                Console.WriteLine("Program has no entry point for Server");
+                return;
+            }
+
+            while (!webSocket.CloseStatus.HasValue)
+            {
+                if (entryPoint.GetParameters().Length > 0)
+                {
+                    Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { IpClient, source });
+                    await invokeResult;
+                }
+                else
+                    entryPoint.Invoke(null, null);
+
                 Console.WriteLine(Encoding.UTF8.GetString(buffer).Trim('\0'));
+                Thread.Sleep(100);
             }
         }
     }
