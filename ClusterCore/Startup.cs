@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Net.WebSockets;
 
@@ -15,8 +16,10 @@ namespace ClusterCore
             Configuration = configuration;
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime applicationLifetime)
         {
+            applicationLifetime.ApplicationStopping.Register(OnShutdown);
+
             var wsOptions = new WebSocketOptions()
             {
                 KeepAliveInterval = TimeSpan.FromSeconds(120)
@@ -32,6 +35,12 @@ namespace ClusterCore
         public void ConfigureServices(IServiceCollection services)
         {
             
+        }
+
+        private void OnShutdown()
+        {
+            Client.StopThread();
+            Server.StopManagerThread();
         }
     }
 }

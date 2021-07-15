@@ -8,23 +8,44 @@ namespace ClusterCore
 {
     class Program
     {
-        private static Thread clientThread = null;
         static void Main(string[] args)
         {
-            clientThread = new Thread(Client.Run)
+            if (args.Length > 0)
             {
-                Priority = ThreadPriority.Normal
-            };
+                if (args[0].CompareTo("join") == 0)
+                {
+                    Client.StartThread(args.Length > 1 ? args[1] : null);
 
-            clientThread.Start(args);
+                    while (Client.ThreadRunning)
+                    {
+                        Thread.Sleep(250);
+                    }
+                }
+                if (args[0].CompareTo("host") == 0)
+                {
+                    Server.StartManagerThread();
+                    var host = new WebHostBuilder()
+                        .UseKestrel()
+                        .UseContentRoot(Directory.GetCurrentDirectory())
+                        .UseStartup<Startup>()
+                        .Build();
 
-            var host = new WebHostBuilder()
-                .UseKestrel()
-                .UseContentRoot(Directory.GetCurrentDirectory())
-                .UseStartup<Startup>()
-                .Build();
+                    host.Run();
+                }
+            }
+            else
+            {
+                Client.StartThread();
 
-            host.Run();
+                Server.StartManagerThread();
+                var host = new WebHostBuilder()
+                    .UseKestrel()
+                    .UseContentRoot(Directory.GetCurrentDirectory())
+                    .UseStartup<Startup>()
+                    .Build();
+
+                host.Run();
+            }
         }
     }
 }
