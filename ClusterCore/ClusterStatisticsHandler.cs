@@ -19,7 +19,7 @@ namespace ClusterCore
         {
             string jsonString = Encoding.UTF8.GetString(buffer).Trim('\0');
             Guid id = WebSocketConnectionManager.GetId(socket);
-            Console.WriteLine(jsonString);
+            //Console.WriteLine(jsonString);
             var stats = JsonConvert.DeserializeObject<ClientStatistics>(jsonString);
 
             WebSocketConnectionManager.SetStatistics(id, stats);
