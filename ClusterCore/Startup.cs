@@ -30,9 +30,8 @@ namespace ClusterCore
             };
 
             app.UseWebSockets(wsOptions);
-            app.MapWebSocketManager("/ws", serviceProvider.GetService<ClusterExecutionHandler>());
-
-            app.Use(Server.HandleRequest);
+            app.MapWebSocketManager("/program", serviceProvider.GetService<ClusterExecutionHandler>());
+            app.MapWebSocketManager("/statistics", serviceProvider.GetService<ClusterStatisticsHandler>());
 
             app.UseFileServer();
         }
@@ -45,7 +44,7 @@ namespace ClusterCore
         private void OnShutdown()
         {
             Client.StopThread();
-            Server.StopManagerThread();
+            Server.StopThread();
         }
     }
 }

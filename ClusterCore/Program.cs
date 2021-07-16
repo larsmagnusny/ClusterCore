@@ -23,7 +23,7 @@ namespace ClusterCore
                 }
                 if (args[0].CompareTo("host") == 0)
                 {
-                    Server.StartManagerThread();
+                    var server = new Server();
                     var host = new WebHostBuilder()
                         .UseKestrel()
                         .UseContentRoot(Directory.GetCurrentDirectory())
@@ -37,7 +37,7 @@ namespace ClusterCore
             {
                 Client.StartThread();
 
-                Server.StartManagerThread();
+                var server = new Server();
                 var host = new WebHostBuilder()
                     .UseKestrel()
                     .UseContentRoot(Directory.GetCurrentDirectory())

@@ -22,12 +22,14 @@ namespace ClusterCore
     public static class Client
     {
         public static bool ThreadRunning = false;
-        private static Thread ClientThread = new Thread(Client.Run);
+        private static Thread ClientThread = new Thread(ListenForProgram);
+        private static Thread ClientStatisticsThread = new Thread(SendStatistics);
 
         public static void StartThread(object data = null)
         {
             ThreadRunning = true;
             ClientThread.Start(data);
+            ClientStatisticsThread.Start(data);
         }
 
         public static void StopThread()
@@ -35,31 +37,10 @@ namespace ClusterCore
             ThreadRunning = false;
         }
 
-        private static void GenerateRuntimeConfig(Stream stream)
-        {
-            using (var writer = new Utf8JsonWriter(
-                stream,
-                new JsonWriterOptions() { Indented = true }
-            ))
-            {
-                writer.WriteStartObject();
-                writer.WriteStartObject("runtimeOptions");
-                writer.WriteStartObject("framework");
-                writer.WriteString("name", "Microsoft.AspNetCore.App");
-                writer.WriteString(
-                    "version",
-                    RuntimeInformation.FrameworkDescription.Replace(".NET ", "")
-                );
-                writer.WriteEndObject();
-                writer.WriteEndObject();
-                writer.WriteEndObject();
-            }
-        }
-
-        public static async void Run(object data)
+        public static async void ListenForProgram(object data)
         {
             string url = data as string;
-            var Uri = new Uri(string.IsNullOrEmpty(url) ? "ws://localhost:5000/ws" : string.Concat(url, "/ws"));
+            var Uri = new Uri(string.IsNullOrEmpty(url) ? "ws://localhost:5000/program" : string.Concat(url, "/program"));
 
             var socket = new ClientWebSocket();
             socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(120);
@@ -71,7 +52,7 @@ namespace ClusterCore
             {
                 try
                 {
-                    Console.WriteLine("Waiting for something to do...");
+                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("Waiting for program...")), WebSocketMessageType.Text, false, CancellationToken.None);
                     await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                     string source = Encoding.UTF8.GetString(buffer).Trim('\0');
 
@@ -81,7 +62,7 @@ namespace ClusterCore
 
                     if (entryPoint == null)
                     {
-                        await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("No entrypoint for client found")), WebSocketMessageType.Text, true, CancellationToken.None);
+                        await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("No entrypoint for client found")), WebSocketMessageType.Text, false, CancellationToken.None);
                         return;
                     }
 
@@ -90,12 +71,47 @@ namespace ClusterCore
                         : entryPoint.Invoke(null, null);
 
                     string strRes = JsonConvert.SerializeObject(result, Formatting.None);
-                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(strRes)), WebSocketMessageType.Text, true, CancellationToken.None);
+                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(strRes)), WebSocketMessageType.Text, false, CancellationToken.None);
                 }
                 catch(Exception ex)
                 {
                     Console.WriteLine(ex);
                 }
+                Thread.Sleep(1000);
+            }
+        }
+
+        public static async void SendStatistics(object data)
+        {
+            string url = data as string;
+            var Uri = new Uri(string.IsNullOrEmpty(url) ? "ws://localhost:5000/statistics" : string.Concat(url, "/statistics"));
+
+            var socket = new ClientWebSocket();
+            socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(120);
+            Console.WriteLine("Connecting to {0}", url);
+            await socket.ConnectAsync(Uri, CancellationToken.None);
+            Console.WriteLine("Connected to {0}", url);
+            var buffer = new byte[4 * 1024];
+            while (!socket.CloseStatus.HasValue && ThreadRunning)
+            {
+                try
+                {
+                    Process currentProcess = Process.GetCurrentProcess();
+                    ClientStatistics systemInfo = new ClientStatistics
+                    {
+                        Bytes = currentProcess.WorkingSet64,
+                        TotalProcessorTime = currentProcess.TotalProcessorTime.TotalSeconds
+                    };
+
+                    string statsString = JsonConvert.SerializeObject(systemInfo, Formatting.None);
+
+                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(statsString)), WebSocketMessageType.Text, false, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+
                 Thread.Sleep(1000);
             }
         }

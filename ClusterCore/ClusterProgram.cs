@@ -14,14 +14,14 @@ namespace ClusterCore
 {
     public class ClusterProgram
     {
-        private string _sourceCode;
+        public string SourceCode { get; set; }
         private SyntaxTree _syntaxTree;
         private AssemblyLoadContext _loadContext;
         private Assembly _assembly;
         public ClusterProgram(string source)
         {
-            _sourceCode = source;
-            _syntaxTree = CSharpSyntaxTree.ParseText(_sourceCode);
+            SourceCode = source;
+            _syntaxTree = CSharpSyntaxTree.ParseText(SourceCode);
 
             var dotNetCoreDir = Path.GetDirectoryName(typeof(object).GetTypeInfo().Assembly.Location);
 

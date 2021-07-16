@@ -28,18 +28,24 @@ namespace ClusterCore
 
             await Receive(socket, async (result, buffer) =>
             {
-                if (result.MessageType == WebSocketMessageType.Text)
+                try
                 {
-                    await _webSocketHandler.ReceiveAsync(socket, result, buffer);
-                    return;
-                }
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        await _webSocketHandler.ReceiveAsync(socket, result, buffer);
+                        return;
+                    }
 
-                else if (result.MessageType == WebSocketMessageType.Close)
+                    else if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await _webSocketHandler.OnDisconnected(socket);
+                        return;
+                    }
+                }
+                catch (Exception ex)
                 {
-                    await _webSocketHandler.OnDisconnected(socket);
-                    return;
+                    Console.WriteLine(ex);
                 }
-
             });
         }
 
@@ -49,6 +55,7 @@ namespace ClusterCore
 
             while (socket.State == WebSocketState.Open)
             {
+                Array.Clear(buffer, 0, buffer.Length);
                 var result = await socket.ReceiveAsync(buffer: new ArraySegment<byte>(buffer),
                                                         cancellationToken: CancellationToken.None);
 
