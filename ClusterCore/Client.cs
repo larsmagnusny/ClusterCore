@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
-
+using System.Threading.Tasks;
 
 namespace ClusterCore
 {
@@ -57,11 +57,13 @@ namespace ClusterCore
                         return;
                     }
 
-                    var result = entryPoint.GetParameters().Length > 0
-                        ? entryPoint.Invoke(null, new object[] { request.parameters })
-                        : entryPoint.Invoke(null, null);
+                    Task<object> result = entryPoint.GetParameters().Length > 0
+                        ? (Task<object>)entryPoint.Invoke(null, new object[] { request.parameters })
+                        : (Task<object>)entryPoint.Invoke(null, null);
 
-                    string strRes = JsonConvert.SerializeObject(result, Formatting.None);
+                    await result;
+
+                    string strRes = JsonConvert.SerializeObject(result.Result, Formatting.None);
                     await SocketUtilities.SendSocketUntillEnd(socket, strRes);
                 }
                 catch(Exception ex)

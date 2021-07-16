@@ -48,7 +48,7 @@ namespace ClusterCore.Utilities
 
                 nullIndex = GetTerminationByte(buffer, 4) - 4;
                 bufferStream.Write(buffer, 4, (nullIndex >= 0 ? nullIndex : 4092) );
-                bytesRecieved += (nullIndex >= 0 ? nullIndex : buffer.Length);
+                bytesRecieved += (nullIndex >= 0 ? nullIndex : 4092);
             }
 
             return bufferStream.ToArray();
