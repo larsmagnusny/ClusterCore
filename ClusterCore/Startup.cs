@@ -31,10 +31,12 @@ namespace ClusterCore
 
             var executionHandler = serviceProvider.GetService<ClusterExecutionHandler>();
             Server.ExecutionHandler = executionHandler;
-
+            app.UseCors("CorsPolicy");
             app.UseWebSockets(wsOptions);
+
             app.MapWebSocketManager("/program", executionHandler);
             app.MapWebSocketManager("/statistics", serviceProvider.GetService<ClusterStatisticsHandler>());
+            
 
             app.UseFileServer();
         }
@@ -42,6 +44,13 @@ namespace ClusterCore
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddWebSocketManager();
+            services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy",
+                    builder => builder.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
+            });
         }
 
         private void OnShutdown()

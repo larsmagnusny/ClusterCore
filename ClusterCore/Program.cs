@@ -25,6 +25,7 @@ namespace ClusterCore
                 {
                     var server = new Server();
                     var host = new WebHostBuilder()
+                        .UseUrls("http://*:5000", "https://*:5001")
                         .UseKestrel()
                         .UseContentRoot(Directory.GetCurrentDirectory())
                         .UseStartup<Startup>()
@@ -39,6 +40,7 @@ namespace ClusterCore
 
                 var server = new Server();
                 var host = new WebHostBuilder()
+                    .UseUrls("http://*:5000", "https://*:5001")
                     .UseKestrel()
                     .UseContentRoot(Directory.GetCurrentDirectory())
                     .UseStartup<Startup>()
