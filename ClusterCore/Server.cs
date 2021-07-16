@@ -20,6 +20,8 @@ namespace ClusterCore
             ThreadRunning = true;
         }
 
+        public static ClusterExecutionHandler ExecutionHandler { get; set; }
+
         private static bool ThreadRunning;
         private static Thread InputThread;
         private string source = @"using System;
@@ -67,14 +69,17 @@ namespace ClusterProgram
 }
                             ";
 
-        public void GetInput()
+        public async void GetInput()
         {
             while (ThreadRunning)
             {
                 string input = Console.ReadLine();
 
+                if (string.IsNullOrEmpty(input))
+                    continue;
+
                 if (input.CompareTo("run") == 0)
-                    QueueProgram();
+                    await QueueProgram();
             }
         }
 
@@ -83,9 +88,29 @@ namespace ClusterProgram
             ThreadRunning = false;
         }
 
-        public void QueueProgram()
+        public async Task QueueProgram()
         {
-            ClusterExecutionHandler.QueuedPrograms.Enqueue(new ClusterProgram(source));
+            ClusterProgram program = new ClusterProgram(source);
+
+            var entryPoint = program.GetServerEntryPoint();
+            var clientEntry = program.GetClientEntryPoint();
+
+            if (entryPoint == null)
+                Console.WriteLine("Error: Program has no entry point for Server.");
+
+            if (clientEntry == null)
+                Console.WriteLine("Error: Program has no entry point for Clients.");
+
+            if (entryPoint == null || clientEntry == null)
+                return;
+
+            if (entryPoint.GetParameters().Length > 0)
+            {
+                Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { ExecutionHandler.GetAllSockets(), program.SourceCode });
+                await invokeResult;
+            }
+            else
+                entryPoint.Invoke(null, null);
         }
     }
 }

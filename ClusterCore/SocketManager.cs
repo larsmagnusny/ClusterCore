@@ -14,6 +14,7 @@ namespace ClusterCore
         private ConcurrentDictionary<Guid, WebSocket> _sockets = new ConcurrentDictionary<Guid, WebSocket>();
         private ConcurrentDictionary<WebSocket, Guid> _ids = new ConcurrentDictionary<WebSocket, Guid>();
         private ConcurrentDictionary<Guid, ClientStatistics> _statistics = new ConcurrentDictionary<Guid, ClientStatistics>();
+        
 
         public WebSocket GetSocketById(Guid id)
         {

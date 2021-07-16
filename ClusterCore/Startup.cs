@@ -29,8 +29,11 @@ namespace ClusterCore
                 KeepAliveInterval = TimeSpan.FromSeconds(120)
             };
 
+            var executionHandler = serviceProvider.GetService<ClusterExecutionHandler>();
+            Server.ExecutionHandler = executionHandler;
+
             app.UseWebSockets(wsOptions);
-            app.MapWebSocketManager("/program", serviceProvider.GetService<ClusterExecutionHandler>());
+            app.MapWebSocketManager("/program", executionHandler);
             app.MapWebSocketManager("/statistics", serviceProvider.GetService<ClusterStatisticsHandler>());
 
             app.UseFileServer();
