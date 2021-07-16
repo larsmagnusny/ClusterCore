@@ -11,8 +11,6 @@ namespace ClusterCore
 {
     public class ClusterExecutionHandler : WebSocketHandler
     {
-        public static ConcurrentDictionary<Guid, ConcurrentQueue<ClusterProgram>> QueuedPrograms = new ConcurrentDictionary<Guid, ConcurrentQueue<ClusterProgram>>();
-
         public ClusterExecutionHandler(SocketManager socketManager) : base(socketManager)
         {
 
@@ -23,31 +21,25 @@ namespace ClusterCore
             return WebSocketConnectionManager.GetAll().Values.ToArray();
         }
 
+        public void ResetSockets(WebSocket[] sockets)
+        {
+            foreach (var item in sockets)
+            {
+                Guid id = WebSocketConnectionManager.GetId(item);
+                WebSocketConnectionManager.SetReady(id, false);
+            }
+        }
+
         public override async Task ReceiveAsync(WebSocket socket, byte[] buffer)
         {
             // Recieve results from execution...
-            Console.WriteLine(Encoding.UTF8.GetString(buffer).Trim('\0'));
+            Console.WriteLine(Encoding.UTF8.GetString(buffer));
 
             Guid id = WebSocketConnectionManager.GetId(socket);
-
-            ConcurrentQueue<ClusterProgram> programQueue;
-            QueuedPrograms.TryGetValue(id, out programQueue);
-
-            if(programQueue == null)
+            WebSocketConnectionManager.SetReady(id, true);
+            
+            while (WebSocketConnectionManager.IsReady(id))
             {
-                programQueue = new ConcurrentQueue<ClusterProgram>();
-                QueuedPrograms[id] = programQueue;
-            }
-
-            while (true)
-            {
-                while (!programQueue.IsEmpty)
-                {
-                    
-
-                    Console.WriteLine(Encoding.UTF8.GetString(buffer).Trim('\0'));
-                }
-
                 Thread.Sleep(200);
             }
         }

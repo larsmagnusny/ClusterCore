@@ -18,7 +18,7 @@ namespace ClusterProgram
         
         static async Task Main(WebSocket[] Clients, string source)
         {
-            long maxPrime = 100;
+            long maxPrime = 10000;
             long numClients = Clients.Length;
 
             long itemsPerClient = maxPrime / numClients;

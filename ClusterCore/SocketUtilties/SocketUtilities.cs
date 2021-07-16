@@ -29,20 +29,20 @@ namespace ClusterCore.Utilities
             await socket.ReceiveAsync(buffer, CancellationToken.None);
 
             int totalSize = BitConverter.ToInt32(new byte[] { buffer[0], buffer[1], buffer[2], buffer[3] });
-            int nullIndex = GetTerminationByte(buffer, 4);
+            int nullIndex = GetTerminationByte(buffer, 4) - 4;
 
             MemoryStream bufferStream = new MemoryStream();
-            bufferStream.Write(buffer, 4, (nullIndex != -1 ? nullIndex : buffer.Length) - 4);
+            bufferStream.Write(buffer, 4, (nullIndex >= -1 ? nullIndex : 4092));
 
-            int bytesRecieved = (nullIndex != -1 ? nullIndex : buffer.Length) - 4;
+            int bytesRecieved = (nullIndex >= 0 ? nullIndex : 4092);
 
             while (totalSize > bytesRecieved)
             {
                 await socket.ReceiveAsync(buffer, CancellationToken.None);
 
-                nullIndex = GetTerminationByte(buffer, 4);
-                bufferStream.Write(buffer, 4, (nullIndex != -1 ? nullIndex : buffer.Length) - 4);
-                bytesRecieved += (nullIndex != -1 ? nullIndex : buffer.Length) - 4;
+                nullIndex = GetTerminationByte(buffer, 4) - 4;
+                bufferStream.Write(buffer, 4, (nullIndex >= 0 ? nullIndex : 4092) );
+                bytesRecieved += (nullIndex >= 0 ? nullIndex : buffer.Length);
             }
 
             return bufferStream.ToArray();
@@ -80,9 +80,11 @@ namespace ClusterCore.Utilities
                     }
                     else
                     {
-                        Array.Copy(stringBuffer, counter, buffer, 4, stringBuffer.Length - counter);
+                        int delta = stringBuffer.Length - counter;
+                        Array.Copy(stringBuffer, counter, buffer, 4, delta);
+                        buffer[delta + 4] = 0x0;
                         await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, CancellationToken.None);
-                        counter += stringBuffer.Length - counter;
+                        counter += delta;
                     }
                 }
             }

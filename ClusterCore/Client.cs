@@ -20,7 +20,7 @@ namespace ClusterCore
         {
             ThreadRunning = true;
             ClientThread.Start(data);
-            ClientStatisticsThread.Start(data);
+            //ClientStatisticsThread.Start(data);
         }
 
         public static void StopThread()

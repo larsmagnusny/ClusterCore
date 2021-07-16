@@ -14,7 +14,7 @@ namespace ClusterCore
         private ConcurrentDictionary<Guid, WebSocket> _sockets = new ConcurrentDictionary<Guid, WebSocket>();
         private ConcurrentDictionary<WebSocket, Guid> _ids = new ConcurrentDictionary<WebSocket, Guid>();
         private ConcurrentDictionary<Guid, ClientStatistics> _statistics = new ConcurrentDictionary<Guid, ClientStatistics>();
-        
+        private ConcurrentDictionary<Guid, bool> _socketReady = new ConcurrentDictionary<Guid, bool>();
 
         public WebSocket GetSocketById(Guid id)
         {
@@ -24,6 +24,19 @@ namespace ClusterCore
         public Guid GetId(WebSocket socket)
         {
             return _ids[socket];
+        }
+
+        public void SetReady(Guid id, bool ready)
+        {
+            _socketReady[id] = ready;
+        }
+
+        public bool IsReady(Guid id)
+        {
+            bool ready;
+            _socketReady.TryGetValue(id, out ready);
+
+            return ready;
         }
 
         public ConcurrentDictionary<Guid, WebSocket> GetAll()
