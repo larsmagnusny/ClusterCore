@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using ClusterCore.Utilities;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,29 +14,27 @@ namespace ClusterCore
 
         }
 
-        public WebSocket[] GetAllSockets()
+        public IEnumerable<ClientSocket> GetAllSockets()
         {
-            return WebSocketConnectionManager.GetAll().Values.ToArray();
+            return WebSocketConnectionManager.GetAll();
         }
 
-        public void ResetSockets(WebSocket[] sockets)
+        public void ResetSockets(IEnumerable<ClientSocket> sockets)
         {
             foreach (var item in sockets)
             {
-                Guid id = WebSocketConnectionManager.GetId(item);
-                WebSocketConnectionManager.SetReady(id, false);
+                WebSocketConnectionManager.SetReady(item.Id, false);
             }
         }
 
-        public override async Task ReceiveAsync(WebSocket socket, byte[] buffer)
+        public override async Task ReceiveAsync(ClientSocket clientSocket, byte[] buffer)
         {
             // Recieve results from execution...
             Console.WriteLine(Encoding.UTF8.GetString(buffer));
 
-            Guid id = WebSocketConnectionManager.GetId(socket);
-            WebSocketConnectionManager.SetReady(id, true);
+            WebSocketConnectionManager.SetReady(clientSocket.Id, true);
             
-            while (WebSocketConnectionManager.IsReady(id))
+            while (WebSocketConnectionManager.IsReady(clientSocket.Id))
             {
                 Thread.Sleep(200);
             }

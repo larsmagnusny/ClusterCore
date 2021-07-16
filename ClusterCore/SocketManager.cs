@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ClusterCore.Utilities;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,19 +12,13 @@ namespace ClusterCore
 {
     public class SocketManager
     {
-        private ConcurrentDictionary<Guid, WebSocket> _sockets = new ConcurrentDictionary<Guid, WebSocket>();
-        private ConcurrentDictionary<WebSocket, Guid> _ids = new ConcurrentDictionary<WebSocket, Guid>();
+        private ConcurrentDictionary<Guid, ClientSocket> _sockets = new ConcurrentDictionary<Guid, ClientSocket>();
         private ConcurrentDictionary<Guid, ClientStatistics> _statistics = new ConcurrentDictionary<Guid, ClientStatistics>();
         private ConcurrentDictionary<Guid, bool> _socketReady = new ConcurrentDictionary<Guid, bool>();
 
-        public WebSocket GetSocketById(Guid id)
+        public ClientSocket GetSocketById(Guid id)
         {
             return _sockets[id];
-        }
-
-        public Guid GetId(WebSocket socket)
-        {
-            return _ids[socket];
         }
 
         public void SetReady(Guid id, bool ready)
@@ -39,17 +34,15 @@ namespace ClusterCore
             return ready;
         }
 
-        public ConcurrentDictionary<Guid, WebSocket> GetAll()
+        public IEnumerable<ClientSocket> GetAll()
         {
-            return _sockets;
+            return _sockets.Values;
         }
 
-        public void AddSocket(WebSocket socket)
+        public void AddSocket(ClientSocket socket)
         {
-            Guid newId = Guid.NewGuid();
-            _sockets[newId] = socket;
-            _ids[socket] = newId;
-            _statistics[newId] = new ClientStatistics();
+            _sockets[socket.Id] = socket;
+            _statistics[socket.Id] = new ClientStatistics();
         }
 
         public void SetStatistics(Guid id, ClientStatistics stats)
@@ -57,16 +50,13 @@ namespace ClusterCore
             _statistics[id] = stats;
         }
 
-        public async Task RemoveSocket(Guid id)
+        public async Task RemoveSocket(ClientSocket clientSocket)
         {
-            WebSocket socket;
+            _sockets.TryRemove(clientSocket.Id, out clientSocket);
 
-            _sockets.TryRemove(id, out socket);
-
-            if (socket != null)
+            if (clientSocket != null)
             {
-                _ids.TryRemove(socket, out id);
-                await socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure, statusDescription: "Closed by server", CancellationToken.None);
+                await clientSocket.Socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure, statusDescription: "Closed by server", CancellationToken.None);
             }
         }
     }

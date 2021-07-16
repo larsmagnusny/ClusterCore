@@ -13,13 +13,19 @@ namespace ClusterCore.Utilities
 {
     public class SocketUtilities
     {
-        public static async Task<string> EvaluateClient(WebSocket socket, object[] parameters, string source)
+        public static async Task<string> EvaluateClient(WebSocket socket, object[] parameters, string source, Func<Task> callback = null)
         {
             var programObj = new ProgramRequest { Source = source, parameters = parameters };
             string programJson = JsonConvert.SerializeObject(programObj, Formatting.None);
             await SendSocketUntillEnd(socket, programJson);
+            string ret = Encoding.UTF8.GetString(await ReadSocketUntillEnd(socket));
 
-            return Encoding.UTF8.GetString(await ReadSocketUntillEnd(socket));
+            if (callback != null)
+            {
+                await callback.Invoke();
+            }
+
+            return ret;
         }
 
 

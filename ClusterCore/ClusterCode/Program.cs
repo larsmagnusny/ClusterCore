@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using ClusterCore.Utilities;
+using System.Linq;
+using System.Diagnostics;
 
 namespace ClusterProgram
 {
@@ -16,9 +18,9 @@ namespace ClusterProgram
     class Program
     {
         
-        static async Task Main(WebSocket[] Clients, string source)
+        static async Task Main(ClientSocket[] Clients, string source)
         {
-            long maxPrime = 10000;
+            long maxPrime = 1000;
             long numClients = Clients.Length;
 
             long itemsPerClient = maxPrime / numClients;
@@ -31,13 +33,25 @@ namespace ClusterProgram
             }
 
             List<Task<string>> Tasks = new List<Task<string>>();
+
+            long from, to;
             // Process the results from clients
             for(int i = 0; i < Clients.Length; i++)
             {
+                var clientSocket = Clients[i];
+                from = i * itemsPerClient;
                 if (i < Clients.Length - 1)
-                    Tasks.Add(SocketUtilities.EvaluateClient(Clients[i], new object[] { i * itemsPerClient, i * itemsPerClient + itemsPerClient }, source));
+                {
+                    to = from + itemsPerClient;
+                    Tasks.Add(SocketUtilities.EvaluateClient(clientSocket.Socket, new object[] { from, to }, source, () => { Console.WriteLine("{0} has completed its task.", clientSocket.Id); return Task.CompletedTask; }));
+                }
                 else
-                    Tasks.Add(SocketUtilities.EvaluateClient(Clients[i], new object[] { i * itemsPerClient, i * itemsPerClient + lastRange }, source));
+                {
+                    to = from + lastRange;
+                    Tasks.Add(SocketUtilities.EvaluateClient(clientSocket.Socket, new object[] { from, to }, source, () => { Console.WriteLine("{0} has completed its task.", clientSocket.Id); return Task.CompletedTask; }));
+                }
+
+                Console.WriteLine("{0} is processing range {1}-{2}", clientSocket.Id, from, to);
             }
 
             var taskResults = await Task.WhenAll(Tasks);

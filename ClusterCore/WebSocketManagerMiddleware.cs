@@ -24,14 +24,18 @@ namespace ClusterCore
             if (!context.WebSockets.IsWebSocketRequest)
                 return;
 
-            var socket = await context.WebSockets.AcceptWebSocketAsync();
-            await _webSocketHandler.OnConnected(socket);
+            var clientSocket = new ClientSocket { 
+                Id = Guid.NewGuid(),
+                Socket = await context.WebSockets.AcceptWebSocketAsync() 
+            };
 
-            await Receive(socket, async (buffer) =>
+            await _webSocketHandler.OnConnected(clientSocket);
+
+            await Receive(clientSocket, async (buffer) =>
             {
                 try
                 {
-                    await _webSocketHandler.ReceiveAsync(socket, buffer);
+                    await _webSocketHandler.ReceiveAsync(clientSocket, buffer);
                 }
                 catch (Exception ex)
                 {
@@ -40,11 +44,11 @@ namespace ClusterCore
             });
         }
 
-        private async Task Receive(WebSocket socket, Action<byte[]> handleMessage)
+        private async Task Receive(ClientSocket clientSocket, Action<byte[]> handleMessage)
         {
-            while (socket.State == WebSocketState.Open)
+            while (clientSocket.Socket.State == WebSocketState.Open)
             {
-                byte[] buffer = await SocketUtilities.ReadSocketUntillEnd(socket);
+                byte[] buffer = await SocketUtilities.ReadSocketUntillEnd(clientSocket.Socket);
 
                 handleMessage(buffer);
             }

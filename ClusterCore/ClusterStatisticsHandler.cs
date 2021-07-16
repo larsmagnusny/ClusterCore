@@ -1,8 +1,5 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.WebSockets;
+﻿using ClusterCore.Utilities;
+using Newtonsoft.Json;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,14 +12,13 @@ namespace ClusterCore
 
         }
 
-        public override async Task ReceiveAsync(WebSocket socket, byte[] buffer)
+        public override async Task ReceiveAsync(ClientSocket clientSocket, byte[] buffer)
         {
             string jsonString = Encoding.UTF8.GetString(buffer).Trim('\0');
-            Guid id = WebSocketConnectionManager.GetId(socket);
             //Console.WriteLine(jsonString);
             var stats = JsonConvert.DeserializeObject<ClientStatistics>(jsonString);
 
-            WebSocketConnectionManager.SetStatistics(id, stats);
+            WebSocketConnectionManager.SetStatistics(clientSocket.Id, stats);
 
             
             return;

@@ -87,11 +87,11 @@ namespace ClusterCore
 
                 if (entryPoint.GetParameters().Length > 0)
                 {
-                    WebSocket[] webSockets = ExecutionHandler.GetAllSockets();
-                    Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { webSockets, program.SourceCode });
+                    var clientSockets = ExecutionHandler.GetAllSockets();
+                    Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { clientSockets.ToArray(), program.SourceCode });
                     await invokeResult;
 
-                    ExecutionHandler.ResetSockets(webSockets);
+                    ExecutionHandler.ResetSockets(clientSockets);
                 }
                 else
                     entryPoint.Invoke(null, null);

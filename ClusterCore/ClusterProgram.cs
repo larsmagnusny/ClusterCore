@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Newtonsoft.Json;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -43,7 +44,8 @@ namespace ClusterCore
                             MetadataReference.CreateFromFile(typeof(Dns).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(ProgramRequest).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(typeof(JsonConvert).GetTypeInfo().Assembly.Location)
+                            MetadataReference.CreateFromFile(typeof(JsonConvert).GetTypeInfo().Assembly.Location),
+                            MetadataReference.CreateFromFile(typeof(Stopwatch).GetTypeInfo().Assembly.Location)
                 },
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
