@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
@@ -24,50 +25,6 @@ namespace ClusterCore
 
         private static bool ThreadRunning;
         private static Thread InputThread;
-        private string source = @"using System;
-using System.Text;
-using System.Net;
-using System.Net.WebSockets;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
-              
-namespace ClusterProgram
-{
-    public class ClientResult {
-        public int Number { get; set; }
-        public bool IsOdd { get;set; }
-    }
-
-    class Program {
-        public static async Task<string> Evaluate(WebSocket socket, object parameters, string source)
-        {
-            byte[] buffer = new byte[4 * 1024];
-            await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(source)), WebSocketMessageType.Text, true, CancellationToken.None);
-            await socket.ReceiveAsync(buffer, CancellationToken.None);
-
-            return Encoding.UTF8.GetString(buffer);
-        }
-
-        static async Task Main(WebSocket[] Clients, string source){
-            // Process the results from clients
-            var results = await Task.WhenAll(Clients.Select(cl => Evaluate(cl, null, source)));
-            
-            Console.WriteLine(""Got: {0} results."", results.Length);
-        }
-
-        static List<ClientResult> Client(){
-            var ret = new List<ClientResult>();
-            for(int i = 0; i < 1000; i++){
-                ret.Add(new ClientResult { Number = i, IsOdd = i % 2 != 0 });
-            }
-
-            return ret;
-        }
-    }
-}
-                            ";
 
         public async void GetInput()
         {
@@ -78,8 +35,26 @@ namespace ClusterProgram
                 if (string.IsNullOrEmpty(input))
                     continue;
 
-                if (input.CompareTo("run") == 0)
-                    await QueueProgram();
+                string[] args = input.Split(' ');
+
+                if (args[0].CompareTo("run") == 0 && args.Length == 2)
+                {
+                    if (args.Length != 2)
+                    {
+                        Console.WriteLine("Invalid number of parameters");
+                        continue;
+                    }
+
+                    string currentPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string filePath = Path.Combine(currentPath, args[1]);
+
+                    if (File.Exists(filePath))
+                        QueueProgram(filePath);
+                    else
+                        Console.Write("Error: file does not exist - {0}", filePath);
+                }
+                else
+                    Console.WriteLine("Unrecognized command");
             }
         }
 
@@ -88,29 +63,40 @@ namespace ClusterProgram
             ThreadRunning = false;
         }
 
-        public async Task QueueProgram()
+        public async Task QueueProgram(string programPath)
         {
-            ClusterProgram program = new ClusterProgram(source);
-
-            var entryPoint = program.GetServerEntryPoint();
-            var clientEntry = program.GetClientEntryPoint();
-
-            if (entryPoint == null)
-                Console.WriteLine("Error: Program has no entry point for Server.");
-
-            if (clientEntry == null)
-                Console.WriteLine("Error: Program has no entry point for Clients.");
-
-            if (entryPoint == null || clientEntry == null)
-                return;
-
-            if (entryPoint.GetParameters().Length > 0)
+            try
             {
-                Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { ExecutionHandler.GetAllSockets(), program.SourceCode });
-                await invokeResult;
+                FileStream fileStream = File.OpenRead(programPath);
+                byte[] sourceBytes = new byte[fileStream.Length];
+                fileStream.Read(sourceBytes, 0, sourceBytes.Length);
+                fileStream.Close();
+                ClusterProgram program = new ClusterProgram(Encoding.UTF8.GetString(sourceBytes));
+
+                var entryPoint = program.GetServerEntryPoint();
+                var clientEntry = program.GetClientEntryPoint();
+
+                if (entryPoint == null)
+                    Console.WriteLine("Error: Program has no entry point for Server.");
+
+                if (clientEntry == null)
+                    Console.WriteLine("Error: Program has no entry point for Clients.");
+
+                if (entryPoint == null || clientEntry == null)
+                    return;
+
+                if (entryPoint.GetParameters().Length > 0)
+                {
+                    Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { ExecutionHandler.GetAllSockets(), program.SourceCode });
+                    await invokeResult;
+                }
+                else
+                    entryPoint.Invoke(null, null);
+            } 
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex);
             }
-            else
-                entryPoint.Invoke(null, null);
         }
     }
 }

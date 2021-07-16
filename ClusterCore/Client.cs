@@ -1,21 +1,12 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
+﻿using ClusterCore.Requests;
+using ClusterCore.Utilities;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
 using System.Net.WebSockets;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Loader;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Web;
+
 
 namespace ClusterCore
 {
@@ -52,26 +43,26 @@ namespace ClusterCore
             {
                 try
                 {
-                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("Waiting for program...")), WebSocketMessageType.Text, false, CancellationToken.None);
-                    await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    string source = Encoding.UTF8.GetString(buffer).Trim('\0');
+                    await SocketUtilities.SendSocketUntillEnd(socket, "Waiting for program...");
+                    string jsonRequest = Encoding.UTF8.GetString(await SocketUtilities.ReadSocketUntillEnd(socket));
+                    var request = JsonConvert.DeserializeObject<ProgramRequest>(jsonRequest);
 
-                    var program = new ClusterProgram(source);
+                    var program = new ClusterProgram(request.Source);
 
                     var entryPoint = program.GetClientEntryPoint();
 
                     if (entryPoint == null)
                     {
-                        await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("No entrypoint for client found")), WebSocketMessageType.Text, false, CancellationToken.None);
+                        await SocketUtilities.SendSocketUntillEnd(socket, "No entrypoint for client found");
                         return;
                     }
 
                     var result = entryPoint.GetParameters().Length > 0
-                        ? entryPoint.Invoke(null, new object[] { null })
+                        ? entryPoint.Invoke(null, new object[] { request.parameters })
                         : entryPoint.Invoke(null, null);
 
                     string strRes = JsonConvert.SerializeObject(result, Formatting.None);
-                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(strRes)), WebSocketMessageType.Text, false, CancellationToken.None);
+                    await SocketUtilities.SendSocketUntillEnd(socket, strRes);
                 }
                 catch(Exception ex)
                 {
@@ -91,7 +82,7 @@ namespace ClusterCore
             Console.WriteLine("Connecting to {0}", url);
             await socket.ConnectAsync(Uri, CancellationToken.None);
             Console.WriteLine("Connected to {0}", url);
-            var buffer = new byte[4 * 1024];
+
             while (!socket.CloseStatus.HasValue && ThreadRunning)
             {
                 try
@@ -105,7 +96,7 @@ namespace ClusterCore
 
                     string statsString = JsonConvert.SerializeObject(systemInfo, Formatting.None);
 
-                    await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(statsString)), WebSocketMessageType.Text, false, CancellationToken.None);
+                    await SocketUtilities.SendSocketUntillEnd(socket, statsString);
                 }
                 catch (Exception ex)
                 {

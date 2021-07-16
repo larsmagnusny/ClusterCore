@@ -1,5 +1,7 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using ClusterCore.Requests;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Linq;
@@ -28,16 +30,20 @@ namespace ClusterCore
             CSharpCompilation compilation = CSharpCompilation.Create(assemblyName: "ClusterProgramCompiled",
                 new[] { _syntaxTree },
                 new[] {
-                            MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(typeof(WebSocket).GetTypeInfo().Assembly.Location),
+                            MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Runtime.dll")),
                             MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Collections.dll")),
                             MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Threading.Tasks.dll")),
                             MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Linq.dll")),
+                            MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "netstandard.dll")),
+                            MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location),
+                            
+                            MetadataReference.CreateFromFile(typeof(WebSocket).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(CancellationToken).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Encoding).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Dns).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location),
-                            MetadataReference.CreateFromFile(Path.Combine(dotNetCoreDir, "System.Runtime.dll"))
+                            MetadataReference.CreateFromFile(typeof(ProgramRequest).GetTypeInfo().Assembly.Location),
+                            MetadataReference.CreateFromFile(typeof(JsonConvert).GetTypeInfo().Assembly.Location)
                 },
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 

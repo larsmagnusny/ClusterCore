@@ -54,6 +54,6 @@ namespace ClusterCore
             }
         }
 
-        public abstract Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
+        public abstract Task ReceiveAsync(WebSocket socket, byte[] buffer);
     }
 }

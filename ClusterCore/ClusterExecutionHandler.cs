@@ -23,7 +23,7 @@ namespace ClusterCore
             return WebSocketConnectionManager.GetAll().Values.ToArray();
         }
 
-        public override async Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
+        public override async Task ReceiveAsync(WebSocket socket, byte[] buffer)
         {
             // Recieve results from execution...
             Console.WriteLine(Encoding.UTF8.GetString(buffer).Trim('\0'));

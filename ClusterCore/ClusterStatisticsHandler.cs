@@ -15,7 +15,7 @@ namespace ClusterCore
 
         }
 
-        public override async Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
+        public override async Task ReceiveAsync(WebSocket socket, byte[] buffer)
         {
             string jsonString = Encoding.UTF8.GetString(buffer).Trim('\0');
             Guid id = WebSocketConnectionManager.GetId(socket);

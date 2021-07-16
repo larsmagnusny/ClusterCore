@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <Compile Remove="ClusterCode\Program.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ClusterCode\Program.cs" />
+  </ItemGroup>
+  <ItemGroup>
          <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
