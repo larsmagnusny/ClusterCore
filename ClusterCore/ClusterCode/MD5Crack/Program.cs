@@ -12,7 +12,7 @@ namespace ClusterCore.ClusterCode.MD5Crack
 {
     public class Program
     {
-        private static int numThreads = 12;
+        private static int numThreads = 4;
         private static byte startByte = (byte)'A';
         private static byte endByte = (byte)'z';
 
