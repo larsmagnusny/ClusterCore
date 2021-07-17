@@ -71,10 +71,9 @@ namespace ClusterCore
                 Console.WriteLine(output);
             }
 
-            var load = output.Split(" ");
-            var cpu = load[0];
+            var cpu = output;
 
-            return double.Parse(cpu) * 100;
+            return double.Parse(cpu);
         }
 
         private Metrics GetWindowsMetrics()
