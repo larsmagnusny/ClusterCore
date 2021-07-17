@@ -61,8 +61,8 @@ namespace ClusterCore
             var output = "";
 
             var info = new ProcessStartInfo();
-            info.FileName = "cat";
-            info.Arguments = "/proc/loadavg";
+            info.FileName = "top";
+            info.Arguments = "-bn 1 |grep \"Cpu(s)\" | awk '{print ($2+$6+$4+$12+$14+$16)/2}'";
             info.RedirectStandardOutput = true;
 
             using (var process = Process.Start(info))
