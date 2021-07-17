@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -41,6 +42,8 @@ namespace ClusterCore
                             MetadataReference.CreateFromFile(typeof(WebSocket).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(CancellationToken).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Encoding).GetTypeInfo().Assembly.Location),
+                            MetadataReference.CreateFromFile(typeof(MD5).GetTypeInfo().Assembly.Location),
+                            MetadataReference.CreateFromFile(typeof(HashAlgorithm).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Dns).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Console).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(ProgramRequest).GetTypeInfo().Assembly.Location),
