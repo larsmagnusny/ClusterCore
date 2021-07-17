@@ -104,11 +104,7 @@ namespace ClusterCore
                 try
                 {
                     Process currentProcess = Process.GetCurrentProcess();
-                    ClientStatistics systemInfo = new ClientStatistics
-                    {
-                        Bytes = currentProcess.WorkingSet64,
-                        TotalProcessorTime = currentProcess.TotalProcessorTime.TotalSeconds
-                    };
+                    Metrics systemInfo = (new MetricsClient()).GetMetrics();
 
                     await SocketUtilities.SendSocketUntillEnd(socket, systemInfo);
                 }

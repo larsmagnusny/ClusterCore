@@ -6,18 +6,19 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClusterCore.Metrics
+namespace ClusterCore
 {
-    public class MemoryMetricsClient
+    public class Metrics
     {
-        public class Metrics
-        {
-            public double CPULoad;
-            public double Total;
-            public double Used;
-            public double Free;
-        }
+        public double CPULoad;
+        public double Total;
+        public double Used;
+        public double Free;
+    }
 
+    public class MetricsClient
+    {
+        
         public Metrics GetMetrics()
         {
             if (IsUnix())

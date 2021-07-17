@@ -20,6 +20,8 @@ namespace ClusterCore
             InputThread = new Thread(tStart);
             InputThread.Start();
             ThreadRunning = true;
+
+            Instance = this;
         }
 
         public static ClusterExecutionHandler ExecutionHandler { get; set; }

@@ -1,5 +1,4 @@
-﻿using ClusterCore.Metrics;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.WebSockets;
 using System.Text;
@@ -45,7 +45,12 @@ namespace ClusterCore
             app.Use(async (context, next) =>
             {
                 await next();
-                var metrics = (new MemoryMetricsClient()).GetMetrics();
+
+                List<Metrics> metrics = new List<Metrics>();
+
+                metrics.Add((new MetricsClient()).GetMetrics());
+
+                metrics.AddRange(ClusterStatisticsHandler.GetInstance().ConnectionManager.GetAllStatistics());
 
                 var response = context.Response;
 

@@ -13,7 +13,7 @@ namespace ClusterCore
     public class SocketManager
     {
         private ConcurrentDictionary<Guid, ClientSocket> _sockets = new ConcurrentDictionary<Guid, ClientSocket>();
-        private ConcurrentDictionary<Guid, ClientStatistics> _statistics = new ConcurrentDictionary<Guid, ClientStatistics>();
+        private ConcurrentDictionary<Guid, Metrics> _statistics = new ConcurrentDictionary<Guid, Metrics>();
         private ConcurrentDictionary<Guid, bool> _socketReady = new ConcurrentDictionary<Guid, bool>();
 
         public ClientSocket GetSocketById(Guid id)
@@ -47,12 +47,17 @@ namespace ClusterCore
         public void AddSocket(ClientSocket socket)
         {
             _sockets[socket.Id] = socket;
-            _statistics[socket.Id] = new ClientStatistics();
+            _statistics[socket.Id] = new Metrics();
         }
 
-        public void SetStatistics(Guid id, ClientStatistics stats)
+        public void SetStatistics(Guid id, Metrics stats)
         {
             _statistics[id] = stats;
+        }
+
+        public IEnumerable<Metrics> GetAllStatistics()
+        {
+            return _statistics.Values;
         }
 
         public async Task RemoveSocket(ClientSocket clientSocket)
