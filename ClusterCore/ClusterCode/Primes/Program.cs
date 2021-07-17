@@ -18,10 +18,15 @@ namespace ClusterProgram
     class Program
     {
         
-        static async Task Main(ClientSocket[] Clients, string source)
+        static async Task Main(IClientAdapter clientAdapter, string[] args)
         {
-            long maxPrime = 1000000;
-            long numClients = Clients.Length;
+            var clientIds = clientAdapter.GetClientIds();
+            long maxPrime = 10000;
+            
+            if(args.Length > 0)
+                long.TryParse(args[0], out maxPrime);
+            
+            long numClients = clientIds.Count;
 
             long itemsPerClient = maxPrime / numClients;
 
@@ -36,22 +41,22 @@ namespace ClusterProgram
 
             long from, to;
             // Process the results from clients
-            for(int i = 0; i < Clients.Length; i++)
+            for(int i = 0; i < clientIds.Count; i++)
             {
-                var clientSocket = Clients[i];
+                var clientId = clientIds.ElementAt(i);
                 from = i * itemsPerClient;
-                if (i < Clients.Length - 1)
+                if (i < clientIds.Count - 1)
                 {
                     to = from + itemsPerClient;
-                    Tasks.Add(Task.Run(() => SocketUtilities.EvaluateClient(clientSocket.Socket, new object[] { from, to }, source, () => { Console.WriteLine("{0} has completed its task.", clientSocket.Id); return Task.CompletedTask; })));
+                    Tasks.Add(clientAdapter.EvaluateClient(clientId, new object[] { from, to }, () => { Console.WriteLine("{0} has completed its task.", clientId); return Task.CompletedTask; }));
                 }
                 else
                 {
                     to = from + lastRange;
-                    Tasks.Add(Task.Run(() => SocketUtilities.EvaluateClient(clientSocket.Socket, new object[] { from, to }, source, () => { Console.WriteLine("{0} has completed its task.", clientSocket.Id); return Task.CompletedTask; })));
+                    Tasks.Add(clientAdapter.EvaluateClient(clientId, new object[] { from, to }, () => { Console.WriteLine("{0} has completed its task.", clientId); return Task.CompletedTask; }));
                 }
 
-                Console.WriteLine("{0} is processing range {1}-{2}", clientSocket.Id, from, to);
+                Console.WriteLine("{0} is processing range {1}-{2}", clientId, from, to);
             }
 
             var taskResults = await Task.WhenAll(Tasks);
@@ -63,6 +68,8 @@ namespace ClusterProgram
                 List<ClientResult> arr = JsonConvert.DeserializeObject<List<ClientResult>>(item);
                 results.AddRange(arr);
             }
+
+            results = results.OrderBy(o => o.Number).ToList();
 
             foreach(var item in results)
             {
@@ -83,6 +90,7 @@ namespace ClusterProgram
             return ret;
         }
 
+        // Entry point for client
         static async Task<object> Client(object[] parameters)
         {
             int from = Convert.ToInt32(parameters[0]);
@@ -101,10 +109,9 @@ namespace ClusterProgram
 
             List<Task<List<ClientResult>>> taskList = new List<Task<List<ClientResult>>>();
 
-            int f, t;
             for(int i = 0; i < 4; i++)
             {
-                f = from + deltaSplit * i;
+                int f = from + deltaSplit * i, t;
                 if (i < 3)
                     t = from + deltaSplit * i + deltaSplit;
                 else
@@ -125,7 +132,7 @@ namespace ClusterProgram
 
         static bool IsPrime(int i)
         {
-            if (i == 1)
+            if (i <= 1)
                 return false;
             if (i == 2)
                 return true;

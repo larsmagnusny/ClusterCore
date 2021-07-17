@@ -16,14 +16,14 @@ namespace ClusterCore
 
         public IEnumerable<ClientSocket> GetAllSockets()
         {
-            return WebSocketConnectionManager.GetAll();
+            return ConnectionManager.GetAll();
         }
 
         public void ResetSockets(IEnumerable<ClientSocket> sockets)
         {
             foreach (var item in sockets)
             {
-                WebSocketConnectionManager.SetReady(item.Id, false);
+                ConnectionManager.SetReady(item.Id, false);
             }
         }
 
@@ -32,9 +32,9 @@ namespace ClusterCore
             // Recieve results from execution...
             Console.WriteLine(Encoding.UTF8.GetString(buffer));
 
-            WebSocketConnectionManager.SetReady(clientSocket.Id, true);
+            ConnectionManager.SetReady(clientSocket.Id, true);
             
-            while (WebSocketConnectionManager.IsReady(clientSocket.Id))
+            while (ConnectionManager.IsReady(clientSocket.Id))
             {
                 Thread.Sleep(200);
             }

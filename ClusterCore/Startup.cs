@@ -55,8 +55,8 @@ namespace ClusterCore
 
         private void OnShutdown()
         {
-            Client.StopThread();
-            Server.StopThread();
+            Client.GetInstance().StopThread();
+            Server.GetInstance().StopThread();
         }
     }
 }

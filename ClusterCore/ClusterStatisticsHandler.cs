@@ -18,7 +18,7 @@ namespace ClusterCore
             //Console.WriteLine(jsonString);
             var stats = JsonConvert.DeserializeObject<ClientStatistics>(jsonString);
 
-            WebSocketConnectionManager.SetStatistics(clientSocket.Id, stats);
+            ConnectionManager.SetStatistics(clientSocket.Id, stats);
 
             
             return;

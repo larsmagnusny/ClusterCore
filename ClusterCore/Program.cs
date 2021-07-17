@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using ClusterCore.Utilities;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.IO;
@@ -14,16 +15,17 @@ namespace ClusterCore
             {
                 if (args[0].CompareTo("join") == 0)
                 {
-                    Client.StartThread(args.Length > 1 ? args[1] : null);
+                    var client = new Client();
+                    client.StartThread(args.Length > 1 ? args[1] : null);
 
-                    while (Client.ThreadRunning)
+                    while (client.ThreadRunning)
                     {
                         Thread.Sleep(250);
                     }
                 }
                 if (args[0].CompareTo("host") == 0)
                 {
-                    var server = new Server();
+                    _ = new Server();
                     var host = new WebHostBuilder()
                         .UseUrls("http://*:5000", "https://*:5001")
                         .UseKestrel()
@@ -36,9 +38,10 @@ namespace ClusterCore
             }
             else
             {
-                Client.StartThread();
+                var client = new Client();
+                client.StartThread(args.Length > 1 ? args[1] : null);
 
-                var server = new Server();
+                _ = new Server();
                 var host = new WebHostBuilder()
                     .UseUrls("http://*:5000", "https://*:5001")
                     .UseKestrel()

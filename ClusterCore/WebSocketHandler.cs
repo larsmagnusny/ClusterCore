@@ -5,21 +5,21 @@ namespace ClusterCore
 {
     public abstract class WebSocketHandler
     {
-        protected SocketManager WebSocketConnectionManager { get; set; }
+        public SocketManager ConnectionManager { get; set; }
 
         public WebSocketHandler(SocketManager webSocketConnectionManager)
         {
-            WebSocketConnectionManager = webSocketConnectionManager;
+            ConnectionManager = webSocketConnectionManager;
         }
 
         public virtual async Task OnConnected(ClientSocket socket)
         {
-            WebSocketConnectionManager.AddSocket(socket);
+            ConnectionManager.AddSocket(socket);
         }
 
         public virtual async Task OnDisconnected(ClientSocket socket)
         {
-            await WebSocketConnectionManager.RemoveSocket(socket);
+            await ConnectionManager.RemoveSocket(socket);
         }
 
 

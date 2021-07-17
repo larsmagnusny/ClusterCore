@@ -34,7 +34,12 @@ namespace ClusterCore
             return ready;
         }
 
-        public IEnumerable<ClientSocket> GetAll()
+        public ICollection<Guid> GetClientIds()
+        {
+            return _sockets.Keys;
+        }
+
+        public ICollection<ClientSocket> GetAll()
         {
             return _sockets.Values;
         }

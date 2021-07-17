@@ -10,26 +10,42 @@ using System.Threading.Tasks;
 
 namespace ClusterCore
 {
-    public static class Client
+    public class Client
     {
-        public static bool ThreadRunning = false;
-        private static Thread ClientThread = new Thread(ListenForProgram);
-        private static Thread ClientStatisticsThread = new Thread(SendStatistics);
+        private static Client Instance;
 
-        public static void StartThread(object data = null)
+        public bool ThreadRunning = false;
+        private Thread ClientThread;
+        private Thread ClientStatisticsThread;
+
+        public Client()
         {
-            ThreadRunning = true;
-            ClientThread.Start(data);
-            //ClientStatisticsThread.Start(data);
+            ParameterizedThreadStart threadStart1 = new ParameterizedThreadStart(ListenForProgram);
+            ClientThread = new Thread(threadStart1);
+
+            ParameterizedThreadStart threadStart2 = new ParameterizedThreadStart(SendStatistics);
+            ClientStatisticsThread = new Thread(threadStart2);
+
+            Instance = this;
         }
 
-        public static void StopThread()
+        public void StartThread(object data = null)
+        {
+            ThreadRunning = true;
+            
+            ClientThread.Start(data);
+            ClientStatisticsThread.Start(data);
+        }
+
+        public void StopThread()
         {
             ThreadRunning = false;
         }
 
-        public static async void ListenForProgram(object data)
+        public async void ListenForProgram(object data)
         {
+            Console.WriteLine("Waiting 1 sec");
+            Thread.Sleep(1000);
             string url = data as string;
             var Uri = new Uri(string.IsNullOrEmpty(url) ? "ws://localhost:5000/program" : string.Concat(url, "/program"));
 
@@ -62,9 +78,7 @@ namespace ClusterCore
                         : (Task<object>)entryPoint.Invoke(null, null);
 
                     await result;
-
-                    string strRes = JsonConvert.SerializeObject(result.Result, Formatting.None);
-                    await SocketUtilities.SendSocketUntillEnd(socket, strRes);
+                    await SocketUtilities.SendSocketUntillEnd(socket, result.Result);
                 }
                 catch(Exception ex)
                 {
@@ -74,7 +88,7 @@ namespace ClusterCore
             }
         }
 
-        public static async void SendStatistics(object data)
+        public async void SendStatistics(object data)
         {
             string url = data as string;
             var Uri = new Uri(string.IsNullOrEmpty(url) ? "ws://localhost:5000/statistics" : string.Concat(url, "/statistics"));
@@ -96,9 +110,7 @@ namespace ClusterCore
                         TotalProcessorTime = currentProcess.TotalProcessorTime.TotalSeconds
                     };
 
-                    string statsString = JsonConvert.SerializeObject(systemInfo, Formatting.None);
-
-                    await SocketUtilities.SendSocketUntillEnd(socket, statsString);
+                    await SocketUtilities.SendSocketUntillEnd(socket, systemInfo);
                 }
                 catch (Exception ex)
                 {
@@ -107,6 +119,11 @@ namespace ClusterCore
 
                 Thread.Sleep(1000);
             }
+        }
+
+        public static Client GetInstance()
+        {
+            return Instance;
         }
     }
 }

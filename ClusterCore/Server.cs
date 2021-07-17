@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ClusterCore.Utilities;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,8 +24,10 @@ namespace ClusterCore
 
         public static ClusterExecutionHandler ExecutionHandler { get; set; }
 
-        private static bool ThreadRunning;
-        private static Thread InputThread;
+        private static Server Instance { get; set; }
+
+        private bool ThreadRunning;
+        private Thread InputThread;
 
         public async void GetInput()
         {
@@ -37,9 +40,9 @@ namespace ClusterCore
 
                 string[] args = input.Split(' ');
 
-                if (args[0].CompareTo("run") == 0 && args.Length == 2)
+                if (args[0].CompareTo("run") == 0)
                 {
-                    if (args.Length != 2)
+                    if (args.Length < 2)
                     {
                         Console.WriteLine("Invalid number of parameters");
                         continue;
@@ -48,8 +51,10 @@ namespace ClusterCore
                     string currentPath = AppDomain.CurrentDomain.BaseDirectory;
                     string filePath = Path.Combine(currentPath, args[1]);
 
+                    string[] p_args = args.Skip(2).ToArray();
+
                     if (File.Exists(filePath))
-                        QueueProgram(filePath);
+                        QueueProgram(filePath, p_args);
                     else
                         Console.Write("Error: file does not exist - {0}", filePath);
                 }
@@ -58,12 +63,12 @@ namespace ClusterCore
             }
         }
 
-        public static void StopThread()
+        public void StopThread()
         {
             ThreadRunning = false;
         }
 
-        public async Task QueueProgram(string programPath)
+        public async Task QueueProgram(string programPath, string[] args)
         {
             try
             {
@@ -88,8 +93,24 @@ namespace ClusterCore
                 if (entryPoint.GetParameters().Length > 0)
                 {
                     var clientSockets = ExecutionHandler.GetAllSockets();
-                    Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { clientSockets.ToArray(), program.SourceCode });
-                    await invokeResult;
+
+                    var parameters = entryPoint.GetParameters();
+                    int numParameters = parameters.Length;
+
+                    if (numParameters == 0)
+                    {
+                        Task invokeResult = (Task)entryPoint.Invoke(null, null);
+                        await invokeResult;
+                    }
+                    else if (numParameters == 1)
+                    {
+                        Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { new ClientAdapter(ExecutionHandler.ConnectionManager, program) });
+                        await invokeResult;
+                    }
+                    else if (numParameters == 2) {
+                        Task invokeResult = (Task)entryPoint.Invoke(null, new object[] { new ClientAdapter(ExecutionHandler.ConnectionManager, program), args });
+                        await invokeResult;
+                    }
 
                     ExecutionHandler.ResetSockets(clientSockets);
                 }
@@ -100,6 +121,11 @@ namespace ClusterCore
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        public static Server GetInstance()
+        {
+            return Instance;
         }
     }
 }
