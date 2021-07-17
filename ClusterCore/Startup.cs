@@ -1,11 +1,16 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using ClusterCore.Metrics;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
 using System;
+using System.IO;
 using System.Net.WebSockets;
+using System.Text;
+using Universe.CpuUsage;
 
 namespace ClusterCore
 {
@@ -36,7 +41,19 @@ namespace ClusterCore
 
             app.MapWebSocketManager("/program", executionHandler);
             app.MapWebSocketManager("/statistics", serviceProvider.GetService<ClusterStatisticsHandler>());
-            
+
+            app.Use(async (context, next) =>
+            {
+                await next();
+                var metrics = (new MemoryMetricsClient()).GetMetrics();
+
+                var response = context.Response;
+
+                response.StatusCode = 200;
+                response.ContentType = "application/json";
+
+                await response.WriteAsync(JsonConvert.SerializeObject(metrics, Formatting.Indented));
+            });
 
             app.UseFileServer();
         }
