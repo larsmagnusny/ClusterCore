@@ -61,19 +61,34 @@ namespace ClusterCore
             var output = "";
 
             var info = new ProcessStartInfo();
-            info.FileName = "/bin/bash";
-            info.Arguments = "-c \"top -bn 1\" |grep \"Cpu(s)\" | awk '{print ($2+$6+$4+$12+$14+$16)/2}'";
+            info.FileName = "top";
+            info.Arguments = "-bn 1";
             info.RedirectStandardOutput = true;
 
             using (var process = Process.Start(info))
             {
                 output = process.StandardOutput.ReadToEnd();
-                Console.WriteLine(output);
             }
 
-            var cpu = output;
+            int cpuIndex = output.IndexOf("%Cpu(s):");
 
-            return double.Parse(cpu);
+            if(cpuIndex != -1)
+            {
+                int eol = output.IndexOf('\n', cpuIndex);
+                string line = output.Substring(cpuIndex + 8, eol - cpuIndex - 8).Trim();
+
+                string[] split = line.Split(',', StringSplitOptions.TrimEntries);
+
+                string us = split[0].Substring(0, split[0].Length - 3);
+                string sy = split[1].Substring(0, split[1].Length - 3);
+
+                double user = double.Parse(us);
+                double system = double.Parse(sy);
+
+                return user + system;
+            }
+
+            return 0;
         }
 
         private Metrics GetWindowsMetrics()
@@ -117,7 +132,6 @@ namespace ClusterCore
             using (var process = Process.Start(info))
             {
                 output = process.StandardOutput.ReadToEnd();
-                Console.WriteLine(output);
             }
 
             var lines = output.Split("\n");
