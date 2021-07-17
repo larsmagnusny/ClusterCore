@@ -12,8 +12,8 @@ namespace ClusterCore.ClusterCode.MD5Crack
 {
     public class Program
     {
-        private static int numThreads = 4;
-        private static byte startByte = (byte)'0';
+        private static int numThreads = 6;
+        private static byte startByte = (byte)'a';
         private static byte endByte = (byte)'z';
 
         public class CrackResult
@@ -62,13 +62,29 @@ namespace ClusterCore.ClusterCode.MD5Crack
 
             int delta = (endByte - startByte) / clients.Count;
 
+            int max = int.Parse(args[0]);
+            byte[] hashToCrack = StringToByteArray(args[1]);
+
             for (int i = 0; i < clients.Count; i++) {
                 var clientId = clients.ElementAt(i);
+                int startMax = i > 0 ? max : 1;
+
+                byte[] start = new byte[startMax];
+                byte[] end = new byte[max];
+
+                Array.Fill(start, startByte);
+                Array.Fill(end, endByte);
+
+                if(i > 0)
+                    start[0] = (byte)(startByte + i * delta);
+
+                end[0] = (byte)(start[0] + (i + 1) * delta);
+
                 tasks.Add(clientAdapter.EvaluateClient(clientId, new object[]
                 {
-                    new byte[]{ 0x16, 0xd7, 0xa4, 0xfc, 0xa7, 0x44, 0x2d, 0xda, 0x3a, 0xd9, 0x3c, 0x9a, 0x72, 0x65, 0x97, 0xe4 },
-                    new byte[]{ (byte)(startByte + i*delta), startByte, startByte, startByte, startByte, startByte, startByte, startByte },
-                    new byte[]{ (byte)(startByte + i*delta + (i+1)*delta), endByte, endByte, endByte, endByte, endByte, endByte, endByte }
+                    hashToCrack,
+                    start,
+                    end
                 }));
             }
 
@@ -86,6 +102,14 @@ namespace ClusterCore.ClusterCode.MD5Crack
             public MD5 md5 { get; set; }
             public CrackResult result { get; set; }
             public CancellationTokenSource cts { get; set; }
+        }
+
+        public static byte[] StringToByteArray(string hex)
+        {
+            return Enumerable.Range(0, hex.Length)
+                             .Where(x => x % 2 == 0)
+                             .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                             .ToArray();
         }
 
         private static void Crack(object data)
@@ -143,12 +167,21 @@ namespace ClusterCore.ClusterCode.MD5Crack
             stopwatch.Start();
             for(int i = 0; i < numThreads; i++)
             {
+                int startLength = start.Length;
+
+                if (start.Length < end.Length && i > 0)
+                    startLength = end.Length;
+
                 byte[] hcrack = new byte[hashToCrack.Length];
-                byte[] startR = new byte[start.Length];
+                byte[] startR = new byte[startLength];
                 byte[] endR = new byte[end.Length];
 
                 Array.Copy(hashToCrack, hcrack, hashToCrack.Length);
-                Array.Copy(start, startR, start.Length);
+                if (i > 0 && start.Length < end.Length)
+                    Array.Fill(start, startByte);
+                else
+                    Array.Copy(start, startR, start.Length);
+
                 Array.Copy(end, endR, end.Length);
 
                 startR[0] = (byte)(startR[0] + (delta * i));
