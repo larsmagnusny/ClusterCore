@@ -50,7 +50,7 @@ namespace ClusterCore
                             MetadataReference.CreateFromFile(typeof(JsonConvert).GetTypeInfo().Assembly.Location),
                             MetadataReference.CreateFromFile(typeof(Stopwatch).GetTypeInfo().Assembly.Location)
                 },
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary ));
 
             Stream exefStream = new MemoryStream();
             Stream pdbfStream = new MemoryStream();

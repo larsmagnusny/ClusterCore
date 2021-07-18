@@ -12,7 +12,7 @@ namespace ClusterCore.ClusterCode.MD5Crack
 {
     public class Program
     {
-        private static int numThreads = 6;
+        private static int numThreads = 4;
         private static byte startByte = (byte)'a';
         private static byte endByte = (byte)'z';
 
@@ -26,28 +26,31 @@ namespace ClusterCore.ClusterCode.MD5Crack
         {
             public byte[] arr { get; set; }
 
-            public void Next(int offset)
+            private int i;
+
+            public void Next()
             {
-                int lastIndex = arr.Length - 1 - offset;
-
-                if (lastIndex < 0)
+                for(i = arr.Length-1; i >= 0; i--)
                 {
-                    byte[] newArr = new byte[offset + 1];
-                    Array.Copy(arr, 0, newArr, 1, arr.Length);
-                    arr = newArr;
-                    arr[0] = (byte)(startByte + 1);
+                    if (arr[i] + 1 > endByte)
+                    {
+                        arr[i] = startByte;
+
+                        if (i == 0)
+                        {
+                            byte[] tmp = new byte[arr.Length + 1];
+                            Array.Copy(arr, 0, tmp, 1, arr.Length);
+                            tmp[0] = startByte;
+                            arr = tmp;
+                            return;
+                        }
+                        
+                        continue;
+                    }
+
+                    arr[i]++;
                     return;
                 }
-
-                if (arr[lastIndex] + 1 > endByte)
-                {
-                    Next(offset + 1);
-                    arr[lastIndex] = startByte;
-
-                    return;
-                }
-
-                arr[lastIndex]++;
             }
         }
 
@@ -60,7 +63,16 @@ namespace ClusterCore.ClusterCode.MD5Crack
 
             var clients = clientAdapter.GetClientIds();
 
+            int charspace = endByte - startByte;
+
             int delta = (endByte - startByte) / clients.Count;
+
+            int lastDelta = delta;
+
+            if (delta * clients.Count > charspace)
+                lastDelta -= charspace - delta * clients.Count;
+            else if(delta * clients.Count < charspace)
+                lastDelta += delta * clients.Count - charspace;
 
             int max = int.Parse(args[0]);
             byte[] hashToCrack = StringToByteArray(args[1]);
@@ -78,7 +90,10 @@ namespace ClusterCore.ClusterCode.MD5Crack
                 if(i > 0)
                     start[0] = (byte)(startByte + i * delta);
 
-                end[0] = (byte)(start[0] + (i + 1) * delta);
+                if (i < clients.Count - 1)
+                    end[0] = (byte)(startByte + i * delta + delta);
+                else
+                    end[0] = (byte)(startByte + i * delta + lastDelta);
 
                 tasks.Add(clientAdapter.EvaluateClient(clientId, new object[]
                 {
@@ -123,16 +138,23 @@ namespace ClusterCore.ClusterCode.MD5Crack
 
             Array.Copy(p.start, curItem.arr, p.start.Length);
 
-            while (!Equals(curItem.arr, p.end) && !p.cts.IsCancellationRequested)
+            int counter = 0;
+
+            while (!SafeEquals(curItem.arr, p.end) && !p.cts.IsCancellationRequested)
             {
-                if (Equals(p.md5.ComputeHash(curItem.arr), p.hashToCrack))
+                byte[] computedHash = p.md5.ComputeHash(curItem.arr);
+                if (SafeEquals(computedHash, p.hashToCrack))
                 {
                     p.result.Cracked = true;
                     p.result.Password = Encoding.ASCII.GetString(curItem.arr);
                     break;
                 }
-                
-                curItem.Next(0);
+                //if (counter++ == 10000)
+                //{
+                //    counter = 0;
+                //    Console.WriteLine(Encoding.ASCII.GetString(curItem.arr));
+                //}
+                curItem.Next();
             }
 
             if (p.result.Cracked)
@@ -146,10 +168,16 @@ namespace ClusterCore.ClusterCode.MD5Crack
             byte[] hashToCrack = Convert.FromBase64String(parameters[0] as string);
             byte[] start = Convert.FromBase64String(parameters[1] as string);
             byte[] end = Convert.FromBase64String(parameters[2] as string);
+            int charSpace = start.Length != end.Length ? (end[0] - startByte) : (end[0] - start[0]);
 
-            
+            int delta = charSpace / numThreads;
 
-            int delta = (end[0] - start[0]) / numThreads;
+            int lastDelta = delta;
+
+            if (delta * numThreads > charSpace)
+                lastDelta -= delta * numThreads - charSpace;
+            else if (delta * numThreads < endByte)
+                lastDelta += charSpace - delta * numThreads;
 
             bool found = false;
             string password = null;
@@ -169,23 +197,32 @@ namespace ClusterCore.ClusterCode.MD5Crack
             {
                 int startLength = start.Length;
 
-                if (start.Length < end.Length && i > 0)
+                if (start.Length != end.Length && i > 0)
+                {
                     startLength = end.Length;
+                    start = new byte[startLength];
+                    Array.Fill(start, startByte, 0, startLength);
+                }
 
                 byte[] hcrack = new byte[hashToCrack.Length];
                 byte[] startR = new byte[startLength];
                 byte[] endR = new byte[end.Length];
 
                 Array.Copy(hashToCrack, hcrack, hashToCrack.Length);
-                if (i > 0 && start.Length < end.Length)
-                    Array.Fill(start, startByte);
-                else
-                    Array.Copy(start, startR, start.Length);
-
+                Array.Copy(start, startR, startLength);
                 Array.Copy(end, endR, end.Length);
 
-                startR[0] = (byte)(startR[0] + (delta * i));
-                endR[0] = (byte)(endR[0] + (delta * i + delta * (i +1)));
+                byte b_start = start[0];
+                byte b_end = end[0];
+
+                startR[0] = (byte)(b_start + delta*i);
+
+                
+
+                if (i < numThreads - 1)
+                    endR[0] = (byte)(b_start + delta * i + delta);
+                else
+                    endR[0] = (byte)(b_start + delta * i + lastDelta);
 
                 var thread = new Thread(Crack);
                 tasks.Add(thread);
@@ -232,17 +269,17 @@ namespace ClusterCore.ClusterCode.MD5Crack
             return new CrackResult { Cracked = found, Password = password };
         }
 
-        public static bool Equals(byte[] first, byte[] second)
+        private static bool SafeEquals(byte[] strA, byte[] strB)
         {
-            if (first.Length != second.Length)
-                return false;
-
-            for(int i = 0; i < first.Length; i++)
+            int length = strA.Length;
+            if (length != strB.Length)
             {
-                if (first[i] != second[i])
-                    return false;
+                return false;
             }
-
+            for (int i = 0; i < length; i++)
+            {
+                if (strA[i] != strB[i]) return false;
+            }
             return true;
         }
 
